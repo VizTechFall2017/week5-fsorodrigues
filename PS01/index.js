@@ -1,117 +1,202 @@
-var svg = d3.select('svg').append('g').attr('transform','translate(100,100)');
+var height = 600;
+var width = 800;
 
-//set up variables to hold two versions of the data, one for each year
-var data2016;
-var data2000;
+var padding = { "top": 100,
+                "right": 0,
+                "bottom": 0,
+                "left": 100 };
 
-//set up a tracker variable to watch the button click state
-var clicked = true;
+// creating global variable to access csv data
+var nestedData;
 
-//set up scales to position circles using the data
-var scaleX = d3.scalePoint().domain(["16-19", "20-24", "25-34", "35-44", "45-54", "55-64","65+"]).range([0, 600]);
-var scaleY = d3.scaleLinear().domain([0,1200]).range([400, 0]);  //remember that 0,0 is at the top of the screen! 300 is the lowest value on the y axis
+var svg = d3.select(".svg-container")
+              .append("svg")
+              .attr("height", height)
+              .attr("width", width)
+              .append("g")
+              .attr("transform", "translate(" + padding.left + "," + padding.top + ")");
 
+var scaleX = d3.scaleLinear()
+                 .domain([0,450000])
+                 .range([0,600])
+                 .nice(); // making scale end in round number
 
-// Add the x Axis
-svg.append("g")
-    .attr('transform','translate(0,400)')  //move the x axis from the top of the y axis to the bottom
-    .call(d3.axisBottom(scaleX));
+var scaleY = d3.scaleLinear()
+                .domain([150000,0])
+                .range([0,400])
+                .nice(); // making scale end in round number
 
-svg.append("g")
-    .call(d3.axisLeft(scaleY));
+var selectedDepartment;
 
+d3.csv("./data_original.csv", function(error, data) {
+    if (error) { throw error };
 
-//import the data from the .csv file
-d3.csv('./incomeData.csv', function(dataIn){
+    // allData = data; // passing data to global variable
 
-    data2016 = dataIn.filter(function(d){
-        return d.year == 2016;
+    // parsing for number output
+    data.forEach(function(d){
+      d.regular = +d.regular;
+      d.retro = +d.retro;
+      d.other = +d.other;
+      d.overtime = +d.overtime;
+      d.injured = +d.injured;
+      d.detail = +d.detail;
+      d.quinn = +d.quinn;
+      d.total = +d.total;
     });
 
-    data2000 = dataIn.filter(function(d){
-        return d.year == 2000;
+    var dataIn = data.filter( function(d) {
+                     return d.overtime >= 2000
     });
 
-
-    /*nestedData = d3.nest()
-        .key(function(d){return d.year})
+    nestedData = d3.nest()
+        .key(function(d){ return d.department_name })
+        .sortKeys(d3.ascending) // sorting departments
         .entries(dataIn);
 
-    console.log(nestedData.filter(function(d){return d.key == "2016"})[0].values);
-    */
+    // console.log(nestedData);
 
+    // calling option menu
+    optionMenu();
 
-    svg.append('text')
-        .text('Weekly income by age and gender')
-        .attr('transform','translate(300, -20)')
-        .style('text-anchor','middle');
+    // grabbing first element from nested data set
+    var firstElement = d3.select("option").property("value");
 
-    svg.append('text')
-        .text('age group')
-        .attr('transform','translate(260, 440)');
+    selectedDepartment = updateData(firstElement);
 
-    svg.append('text')
-        .text('weekly income')
-        .attr('transform', 'translate(-50,250)rotate(270)');
+    // calling title and axis' labels
+    chartTitle();
+    xLabel();
+    yLabel();
 
-    //bind the data to the d3 selection, but don't draw it yet
-    svg.selectAll('circles')
-        .data(data2016)
-        .enter()
-        .append('circle')
-        .attr('class','w_dataPoints')
-        .attr('r', 5)
-        .attr('fill', "lime");
+    // calling axis
+    xAxis(scaleX);
+    yAxis(scaleY);
 
-    svg.selectAll('circles')
-        .data(data2016)
-        .enter()
-        .append('circle')
-        .attr('class','m_dataPoints')
-        .attr('r', 5)
-        .attr('fill', "blue");
-
-    //call the drawPoints function below, and hand it the data2016 variable with the 2016 object array in it
-    drawPoints(data2016);
+    // drawing circles
+    drawPoints(selectedDepartment);
 
 });
 
-//this function draws the actual data points as circles. It's split from the enter() command because we want to run it many times
-//without adding more circles each time.
-function drawPoints(pointData){
 
-    svg.selectAll('.w_dataPoints')  //select all of the circles with dataPoints class that we made using the enter() commmand above
-        .data(pointData)          //re-attach them to data (necessary for when the data changes from 2016 to 2017)
-        .attr('cx',function(d){   //look up values for all the attributes that might have changed, and draw the new circles
-            return scaleX(d.age);
-        })
-        .attr('cy',function(d){
-            return scaleY(d.women);
-        });
+//defining function to append select menu
+function optionMenu() {
 
-    svg.selectAll('.m_dataPoints')  //do the same for the men's data series
-        .data(pointData)
-        .attr('cx',function(d){
-            return scaleX(d.age);
-        })
-        .attr('cy',function(d){
-            return scaleY(d.men);
-        });
-}
+  var menu = d3.select(".menu-container")
+                 .append("select")
+                 .attr("type", "dropdown-menu")
+                 .on("change", option);
 
-//this function runs when the HTML button is clicked.
-function buttonClicked(){
+      menu.selectAll("option")
+           .data(nestedData)
+           .enter()
+           .append("option")
+           .text(function(d) { return d.key })
+           .attr("value", function(d) { return d.key });
+};
 
-    //check to see whether the tracker variable is true. If it is, use the 2017 data set
-    if(clicked == true){
-        drawPoints(data2000);  //call the draw function again, to redraw the circles
-        clicked = false;       //reset the value of the tracker variable
-    }
-    else{   //if the tracker variable is not true, use the 2016 data set
-        drawPoints(data2016);
-        clicked = true;
-    }
+// defining function to return different colors according to criteria
+function colorFill(d) { if (d.department_name == "Boston Fire Department") {
+                                  return "#FF2819"
 
+                      } else if (d.department_name == "Boston Police Department") {
+                                  return "#123456"
+                                }
+                        else {
+                                  return "#5d3d82"
+                        }
+                     };
 
+//defining function to redraw circles on SVG canvas
+function drawPoints(dataPoints) {
 
-}
+        // binding data to selection
+        var selection = svg.selectAll("circle")
+            .data(dataPoints)
+
+       // UPDATE (updating attributes of existing circles)
+       selection.transition()
+                .duration(500)
+                .ease(d3.easeSin)
+                .attr("cx", function(d) { return scaleX(d.total) })
+                .attr("cy", function(d) { return scaleY(d.overtime) })
+                .attr("r", 5)
+                .attr("fill", colorFill)
+                .attr("opacity", .7);
+
+       // ENTER (appends new circles)
+        selection.enter().append("circle")
+                  .attr("cx", function(d) { return scaleX(d.total) })
+                  .attr("cy", function(d) { return scaleY(d.overtime) })
+                  .attr("r", 0)
+                    .transition()
+                    .duration(500)
+                    .ease(d3.easeSin)
+                  .attr("r", 5)
+                  .attr("fill", colorFill)
+                  .attr("opacity", .7);
+
+        // EXIT (removes circles not bound with data)
+        selection.exit()
+                    .transition()
+                    .duration(200)
+                    .ease(d3.easeSin)
+                  .attr("r", 0)
+                 .remove();
+
+};
+
+// defining functions to append title and labels to axis
+function chartTitle() {
+          svg.append("text")
+               .attr("x", 0)
+               .attr("y", -25)
+               .attr("font-size", 24)
+               .text("City of Boston payroll, 2016");
+};
+
+function xLabel() {
+          svg.append("text")
+              .attr("x", 300)
+              .attr("y", 440)
+              .attr("font-size", 13)
+              .attr("text-anchor", "middle")
+              .text("Total earnings, in USD");
+};
+
+function yLabel() {
+          svg.append("text")
+               .attr("transform", "rotate(270)")
+               .attr("x", -200)
+               .attr("y", -60)
+               .attr("font-size", 13)
+               .attr("text-anchor", "middle")
+               .text("Overtime earnings, in USD");
+};
+
+// defining functions to append axis
+function xAxis(scale) {
+          svg.append("g")
+              .attr("transform", "translate(0,400)")
+              .call(d3.axisBottom(scale));
+};
+
+function yAxis(scale) {
+          svg.append("g")
+              .attr("transform", "translate(0,0)")
+              .call(d3.axisLeft(scale));
+};
+
+// defining function to update data set
+function updateData(newSelection) {
+
+    return nestedData.filter(function(d){ return d.key == newSelection })[0].values
+};
+
+// defining event listener function
+function option() {
+  selectValue = d3.select(this).property("value")
+  newData = updateData(selectValue);
+  drawPoints(newData);
+
+};
