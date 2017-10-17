@@ -99,7 +99,8 @@ function optionMenu() {
 
   var menu = d3.select(".menu-container")
                  .append("select")
-                 .attr("type", "dropdown-menu")
+                 .attr("name", "dropdown-menu")
+                 .attr("class", "dropdownmenu")
                  .on("change", option);
 
       menu.selectAll("option")

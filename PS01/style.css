@@ -1,9 +1,30 @@
 text {
-  font-family: "Roboto";
+  font-family: "Roboto", Verdana, sans-serif;
 }
 
 body {
+  font-family: "Roboto Slab", Verdana, sans-serif;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  background: #FAFAFA;
+}
 
+.svg-container {
+    /*border: 1px solid black;*/
+    margin-top: 3%;
+    margin-left: 5%;
+
+}
+
+.menu-container {
+  margin-top: 8.5%;
+  margin-left: 1%;
+}
+
+.menu-container > p {
+  font-weight: 700;
+}
+
+select {
+  font-family: "Roboto", Verdana, sans-serif;
 }
