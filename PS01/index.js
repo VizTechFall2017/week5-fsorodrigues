@@ -2,13 +2,14 @@ var height = 600;
 var width = 800;
 
 var padding = { "top": 125,
-                "right": 0,
+                "right": 100,
                 "bottom": 0,
                 "left": 100 };
 
 // creating global variable to access csv data
 var nestedData;
 
+// creating svg canvas
 var svg = d3.select(".svg-container")
               .append("svg")
               .attr("height", height)
@@ -16,17 +17,14 @@ var svg = d3.select(".svg-container")
               .append("g")
               .attr("transform", "translate(" + padding.left + "," + padding.top + ")");
 
-var scaleX = d3.scaleLinear()
-                 .domain([0,450000])
-                 .range([0,600])
-                 .nice(); // making scale end in round number
-
-var scaleY = d3.scaleLinear()
-                .domain([150000,0])
-                .range([0,400])
-                .nice(); // making scale end in round number
-
 var selectedDepartment;
+var scaleX;
+var scaleY;
+var maxX;
+var maxY;
+
+var minimumOvertime = 500;
+var minimumWorkers = 10;
 
 d3.csv("./data_original.csv", function(error, data) {
     if (error) { throw error };
@@ -46,7 +44,7 @@ d3.csv("./data_original.csv", function(error, data) {
     });
 
     var dataIn = data.filter( function(d) {
-                     return d.overtime >= 2000
+                     return d.overtime >= minimumOvertime
     });
 
     nestedData = d3.nest()
@@ -54,23 +52,36 @@ d3.csv("./data_original.csv", function(error, data) {
         // .sortKeys(d3.ascending) // sorting departments A-Z
         .entries(dataIn)
         .sort(function(a, b){ return d3.descending(a.values, b.values); }) // sorting departments by number of entries
-        .filter(function(d) { return d.values.length >= 10 });
+        .filter(function(d) { return d.values.length >= minimumWorkers });
 
     console.log(nestedData);
 
     // calling option menu
     optionMenu();
 
-    // grabbing first element from nested data set
-    var firstElement = d3.select("option").property("value");
-
-    selectedDepartment = updateData(firstElement);
-
     // calling title, subtitle and axis labels
     chartTitle();
     chartSubtitle();
     xLabel();
     yLabel();
+
+    // grabbing first element from nested data set
+    var firstElement = d3.select("option").property("value");
+
+    selectedDepartment = updateData(firstElement);
+
+    maxX = getMaxX(selectedDepartment)
+    maxY = getMaxY(selectedDepartment)
+
+    scaleX = d3.scaleLinear()
+                 .domain([0, maxX])
+                 .range([0, 600])
+                 .nice(); // making scale end in round number
+
+    scaleY = d3.scaleLinear()
+                .domain([maxY,0])
+                .range([0, 400])
+                .nice(); // making scale end in round number
 
     // calling axis
     xAxis(scaleX);
@@ -81,6 +92,7 @@ d3.csv("./data_original.csv", function(error, data) {
 
 });
 
+// setting up scale
 
 //defining function to append select menu
 function optionMenu() {
@@ -97,6 +109,14 @@ function optionMenu() {
            .text(function(d) { return d.key + " (" + d.values.length + ")" })
            .attr("value", function(d) { return d.key });
 };
+
+function getMaxX(dataset) {
+      return d3.max(dataset, function(d) { return d.total * 1.1 });
+}
+
+function getMaxY(dataset) {
+      return d3.max(dataset, function(d) { return d.overtime * 1.1 });
+}
 
 // defining function to return different colors according to criteria
 function colorFill(d) { if (d.department_name == "Boston Fire Department") {
@@ -163,7 +183,7 @@ function chartSubtitle() {
                .attr("x", 0)
                .attr("y", -25)
                .attr("font-size", 16)
-               .text("Minimum overtime of $2,000");
+               .text("Minimum of " + minimumWorkers + " workers receiving at least " + "$" + minimumOvertime + " in overtime hours" );
 };
 
 function xLabel() {
@@ -188,13 +208,15 @@ function yLabel() {
 // defining functions to append axis
 function xAxis(scale) {
           svg.append("g")
-              .attr("transform", "translate(0,400)")
+              .attr("transform", "translate(0, 400)" )
+              .attr("class", "xAxis")
               .call(d3.axisBottom(scale));
 };
 
 function yAxis(scale) {
           svg.append("g")
               .attr("transform", "translate(0,0)")
+              .attr("class", "yAxis")
               .call(d3.axisLeft(scale));
 };
 
@@ -208,6 +230,24 @@ function updateData(newSelection) {
 function option() {
   selectValue = d3.select(this).property("value")
   newData = updateData(selectValue);
+
+  maxX = getMaxX(newData);
+  maxY = getMaxY(newData);
+
+  var newScaleX = scaleX.domain([0, maxX]).nice();
+  var newScaleY = scaleY.domain([maxY,0]).nice();
+
+  d3.select(".xAxis")
+      .transition()
+      .duration(500)
+      .ease(d3.easeSin)
+    .call(d3.axisBottom(newScaleX));
+  d3.select(".yAxis")
+      .transition()
+      .duration(500)
+      .ease(d3.easeSin)
+    .call(d3.axisLeft(newScaleY));
+
   drawPoints(newData);
 
 };
