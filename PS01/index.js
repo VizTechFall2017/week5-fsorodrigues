@@ -1,7 +1,7 @@
 var height = 600;
 var width = 800;
 
-var padding = { "top": 100,
+var padding = { "top": 125,
                 "right": 0,
                 "bottom": 0,
                 "left": 100 };
@@ -51,10 +51,12 @@ d3.csv("./data_original.csv", function(error, data) {
 
     nestedData = d3.nest()
         .key(function(d){ return d.department_name })
-        .sortKeys(d3.ascending) // sorting departments
-        .entries(dataIn);
+        // .sortKeys(d3.ascending) // sorting departments A-Z
+        .entries(dataIn)
+        .sort(function(a, b){ return d3.descending(a.values, b.values); }) // sorting departments by number of entries
+        .filter(function(d) { return d.values.length >= 10 });
 
-    // console.log(nestedData);
+    console.log(nestedData);
 
     // calling option menu
     optionMenu();
@@ -64,8 +66,9 @@ d3.csv("./data_original.csv", function(error, data) {
 
     selectedDepartment = updateData(firstElement);
 
-    // calling title and axis' labels
+    // calling title, subtitle and axis labels
     chartTitle();
+    chartSubtitle();
     xLabel();
     yLabel();
 
@@ -91,7 +94,7 @@ function optionMenu() {
            .data(nestedData)
            .enter()
            .append("option")
-           .text(function(d) { return d.key })
+           .text(function(d) { return d.key + " (" + d.values.length + ")" })
            .attr("value", function(d) { return d.key });
 };
 
@@ -146,13 +149,21 @@ function drawPoints(dataPoints) {
 
 };
 
-// defining functions to append title and labels to axis
+// defining functions to append title, subtitle and labels to axis
 function chartTitle() {
           svg.append("text")
                .attr("x", 0)
-               .attr("y", -25)
+               .attr("y", -50)
                .attr("font-size", 24)
                .text("City of Boston payroll, 2016");
+};
+
+function chartSubtitle() {
+          svg.append("text")
+               .attr("x", 0)
+               .attr("y", -25)
+               .attr("font-size", 16)
+               .text("Minimum overtime of $2,000");
 };
 
 function xLabel() {
