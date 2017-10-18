@@ -29,8 +29,6 @@ var minimumWorkers = 10;
 d3.csv("./data_original.csv", function(error, data) {
     if (error) { throw error };
 
-    // allData = data; // passing data to global variable
-
     // parsing for number output
     data.forEach(function(d){
       d.regular = +d.regular;
@@ -68,11 +66,14 @@ d3.csv("./data_original.csv", function(error, data) {
     // grabbing first element from nested data set
     var firstElement = d3.select("option").property("value");
 
+    // setting initial data to the first element on nested data
     selectedDepartment = updateData(firstElement);
 
+    // setting max values for X and Y
     maxX = getMaxX(selectedDepartment)
     maxY = getMaxY(selectedDepartment)
 
+    // setting scales with max values
     scaleX = d3.scaleLinear()
                  .domain([0, maxX])
                  .range([0, 600])
@@ -92,14 +93,11 @@ d3.csv("./data_original.csv", function(error, data) {
 
 });
 
-// setting up scale
-
 //defining function to append select menu
 function optionMenu() {
 
   var menu = d3.select(".menu-container")
                  .append("select")
-                 .attr("name", "dropdown-menu")
                  .attr("class", "dropdownmenu")
                  .on("change", option);
 
@@ -111,12 +109,13 @@ function optionMenu() {
            .attr("value", function(d) { return d.key });
 };
 
+// setting up function to get maximum values
 function getMaxX(dataset) {
-      return d3.max(dataset, function(d) { return d.total * 1.1 });
+      return d3.max(dataset, function(d) { return d.total * 1.05 });
 }
 
 function getMaxY(dataset) {
-      return d3.max(dataset, function(d) { return d.overtime * 1.1 });
+      return d3.max(dataset, function(d) { return d.overtime * 1.05 });
 }
 
 // defining function to return different colors according to criteria
@@ -175,7 +174,7 @@ function chartTitle() {
           svg.append("text")
                .attr("x", 0)
                .attr("y", -50)
-               .attr("font-size", 24)
+               .attr("class", "title")
                .text("City of Boston payroll, 2016");
 };
 
@@ -183,7 +182,7 @@ function chartSubtitle() {
           svg.append("text")
                .attr("x", 0)
                .attr("y", -25)
-               .attr("font-size", 16)
+               .attr("class", "subtitle")
                .text("Minimum of " + minimumWorkers + " workers receiving at least " + "$" + minimumOvertime + " in overtime hours" );
 };
 
@@ -191,7 +190,7 @@ function xLabel() {
           svg.append("text")
               .attr("x", 300)
               .attr("y", 440)
-              .attr("font-size", 13)
+              .attr("class", "label")
               .attr("text-anchor", "middle")
               .text("Total earnings, in USD");
 };
@@ -201,7 +200,7 @@ function yLabel() {
                .attr("transform", "rotate(270)")
                .attr("x", -200)
                .attr("y", -60)
-               .attr("font-size", 13)
+               .attr("class", "label")
                .attr("text-anchor", "middle")
                .text("Overtime earnings, in USD");
 };
@@ -232,23 +231,29 @@ function option() {
   selectValue = d3.select(this).property("value")
   newData = updateData(selectValue);
 
+  // changing maximum X value
   maxX = getMaxX(newData);
-  maxY = getMaxY(newData);
-
+  // ressetting domain
   var newScaleX = scaleX.domain([0, maxX]).nice();
-  var newScaleY = scaleY.domain([maxY,0]).nice();
-
+  // recalling x Axis
   d3.select(".xAxis")
       .transition()
       .duration(500)
       .ease(d3.easeSin)
     .call(d3.axisBottom(newScaleX));
+
+  // changing maximum Y value
+  maxY = getMaxY(newData);
+  // ressetting domain
+  var newScaleY = scaleY.domain([maxY,0]).nice();
+  // recalling y Axis
   d3.select(".yAxis")
       .transition()
       .duration(500)
       .ease(d3.easeSin)
     .call(d3.axisLeft(newScaleY));
 
+  // redrawing chart with updated data
   drawPoints(newData);
 
 };
